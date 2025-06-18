@@ -10,7 +10,6 @@ import {
   Alert,
   StatusBar,
 } from "react-native";
-// Removed Firebase imports
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -18,7 +17,7 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = async () => {
     try {
-      const response = await fetch("http://localhost:5000/login", {
+      const response = await fetch("http://192.168.1.61:5000/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -26,7 +25,7 @@ export default function LoginScreen({ navigation }) {
       const data = await response.json();
       if (response.ok) {
         Alert.alert("Success", "Logged in successfully!");
-        // You can navigate or save user info here
+        navigation.replace("Home"); // Redirect to HomeScreen after login
       } else {
         Alert.alert("Login Failed", data.message || "Invalid credentials");
       }
@@ -41,7 +40,7 @@ export default function LoginScreen({ navigation }) {
       <View style={styles.topSection}>
         <Text style={styles.loginTitle}>Login</Text>
         <Image
-          source={require("../../assets/logo.png")} // Put your logo in assets folder
+          source={require("../../assets/logo.png")}
           style={styles.logo}
           resizeMode="contain"
         />

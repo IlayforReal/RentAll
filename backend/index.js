@@ -4,7 +4,6 @@ const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const path = require('path');
-const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const app = express();
@@ -29,19 +28,7 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// OTP store (for demo; use Redis or DB for production)
-const otpStore = {};
-
-// Nodemailer setup
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
-// Registration endpoint: receives form-data, sends OTP
+// Registration endpoint: receives form-data, creates user immediately (no OTP)
 app.post('/register', upload.single('validID'), async (req, res) => {
   try {
     if (!req.body) {
@@ -56,45 +43,16 @@ app.post('/register', upload.single('validID'), async (req, res) => {
       return res.status(400).json({ message: 'Email already registered' });
     }
 
-    // Generate OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStore[email] = {
-      otp,
-      userData: { email, password, firstName, lastName, birthday, phone, validIDPath }
-    };
-
-    // Send OTP email
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Your OTP Code',
-      text: `Your OTP code is: ${otp}`,
-    });
-
-    res.json({ message: 'OTP sent to email' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// OTP verification endpoint: completes registration
-app.post('/verify-otp', async (req, res) => {
-  const { email, otp } = req.body;
-  const record = otpStore[email];
-  if (!record || record.otp !== otp) {
-    return res.status(400).json({ message: 'Invalid or expired OTP' });
-  }
-  const { password, firstName, lastName, birthday, phone, validIDPath } = record.userData;
-  try {
+    // Hash password and create user immediately
     const hashedPassword = await bcrypt.hash(password, 10);
     await pool.query(
       'INSERT INTO users (email, password, first_name, last_name, birthday, phone, valid_id_path) VALUES ($1, $2, $3, $4, $5, $6, $7)',
       [email, hashedPassword, firstName, lastName, birthday, phone, validIDPath]
     );
-    delete otpStore[email];
+
     res.json({ message: 'User registered successfully' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
 });
